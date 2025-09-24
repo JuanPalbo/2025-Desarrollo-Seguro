@@ -5,6 +5,7 @@ import db from '../db';
 import { User,UserRow } from '../types/user';
 import jwtUtils from '../utils/jwt';
 import ejs from 'ejs';
+import bcrypt from 'bcrypt';
 
 const RESET_TTL = 1000 * 60 * 60;         // 1h
 const INVITE_TTL = 1000 * 60 * 60 * 24 * 7; // 7d
@@ -20,10 +21,12 @@ class AuthService {
     // create invite token
     const invite_token = crypto.randomBytes(6).toString('hex');
     const invite_token_expires = new Date(Date.now() + INVITE_TTL);
+    // Hasheamos la contraseña antes de almacenarla
+    const hashedPassword = await bcrypt.hash(user.password, 10);
     await db<UserRow>('users')
       .insert({
         username: user.username,
-        password: user.password,
+        password: hashedPassword,
         email: user.email,
         first_name: user.first_name,
         last_name:  user.last_name,
@@ -90,7 +93,9 @@ class AuthService {
       .andWhere('activated', true)
       .first();
     if (!user) throw new Error('Invalid email or not activated');
-    if (password != user.password) throw new Error('Invalid password');
+    // Comparamos con la contraseña hasheada
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) throw new Error('Invalid password');
     return user;
   }
 
@@ -136,10 +141,13 @@ class AuthService {
       .first();
     if (!row) throw new Error('Invalid or expired reset token');
 
+    // contraseña hasheada
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
     await db('users')
       .where({ id: row.id })
       .update({
-        password: newPassword,
+        password: hashedPassword,
         reset_password_token: null,
         reset_password_expires: null
       });
@@ -152,9 +160,12 @@ class AuthService {
       .first();
     if (!row) throw new Error('Invalid or expired invite token');
 
+    // Contraseña hasheada
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
     await db('users')
       .update({
-        password: newPassword,
+        password: hashedPassword,
         invite_token: null,
         invite_token_expires: null
       })
