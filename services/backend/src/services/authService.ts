@@ -42,15 +42,23 @@ class AuthService {
     });
     const link = `${process.env.FRONTEND_URL}/activate-user?token=${invite_token}&username=${user.username}`;
    
+    //Modificamos el template para que agarre las variables first_name y last_name 
     const template = `
       <html>
         <body>
-          <h1>Hello ${user.first_name} ${user.last_name}</h1>
-          <p>Click <a href="${ link }">here</a> to activate your account.</p>
+          <h1>Hello <%= first_name %> <%= last_name %></h1>
+          <p>Click <a href="<%= link %>">here</a> to activate your account.</p>
         </body>
       </html>`;
-    const htmlBody = ejs.render(template);
-    
+
+   // Se separan los datos y se eliminan los caracteres "<" y ">" para evitar inyecciones
+    const CleanData = {
+      first_name: user.first_name.replace(/[<>]/g, ''),
+      last_name: user.last_name.replace(/[<>]/g, ''),
+      link: link
+    };
+
+    const htmlBody = ejs.render(template, CleanData);
     await transporter.sendMail({
       from: "info@example.com",
       to: user.email,
