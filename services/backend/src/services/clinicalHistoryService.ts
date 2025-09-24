@@ -6,6 +6,17 @@ import { promisify } from 'util';
 
 const unlink = promisify(fs.unlink);
 
+// Funcion auxiliar para tener un directorio seguro para almacenar los uploads de archivos
+const CLINICAL_UPLOADS_DIR = path.resolve("uploads/clinical_histories");
+
+function getSafePath(filePath: string): string {
+  const resolvedPath = path.resolve(filePath); // Convierte cualquier filePath ingresado en un path absoluto
+  if (!resolvedPath.startsWith(CLINICAL_UPLOADS_DIR)) {
+    throw new Error("Invalid file path"); //Si el path absoluto no comienza con el directorio seguro entonces se lanza un error y no se continua
+  }
+  return resolvedPath;
+}
+
 interface CHRow {
   id: string;
   user_id: string;
@@ -130,7 +141,9 @@ class ClinicalHistoryService {
       .first();
     if (!f) throw new Error('File not found');
 
-    try { await unlink(path.resolve(f.path)); } catch {}
+    //try { await unlink(path.resolve(f.path)); } catch {}
+    try { await unlink(getSafePath(f.path)); } catch {} // Se usa la función auxiliar definida arriba
+
     await db('clinical_history_files').where({ id: f.id }).delete();
   }
 }
