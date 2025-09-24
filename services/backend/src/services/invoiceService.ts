@@ -16,7 +16,13 @@ interface InvoiceRow {
 class InvoiceService {
   static async list( userId: string, status?: string, operator?: string): Promise<Invoice[]> {
     let q = db<InvoiceRow>('invoices').where({ userId: userId });
-    if (status) q = q.andWhereRaw(" status "+ operator + " '"+ status +"'");
+    //if (status) q = q.andWhereRaw(" status "+ operator + " '"+ status +"'"); Vulnerabilidad identificada para mitigar
+    const allowedOperators = ['=', '!=', '>', '<', '>=', '<=']; // Operadores permitidos para ingreso del usuario, esta vez controlados
+    if (status && allowedOperators.includes(operator)){ //Se controla lo que se ingresa a "status" y "operator", si se encuentran en los operadores habilitados se ejecuta la consulta
+      q = q.andWhereRaw("status " + operator + " ?", [status]); //Se sustituye status por "?" que es un marcador poisicional, y se utiliza un array para almacenar el valor a sustituir en el marcador posicional.
+    } else {
+      console.error("Operador no válido"); // Si el usuario intenta ingresar un valor prohibido se le prohibira continuar y no se ejecutara la consulta.
+    }
     const rows = await q.select();
     const invoices = rows.map(row => ({
       id: row.id,
