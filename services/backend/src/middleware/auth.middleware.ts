@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+//Se cambia "secreto_super_seguro" por una variable de entorno para eliminar la vulnerabilidad de credenciales embebidas
+const Secreto = process.env.JWT_SECRET
 
 interface JwtPayload {
   id: string;
@@ -15,7 +17,7 @@ export const authenticateJWT = (req: Request, res: Response, next: NextFunction)
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, "secreto_super_seguro");
+    const decoded = jwt.verify(token, Secreto);
     (req as any).user = decoded;
     next();
   } catch (err) {
