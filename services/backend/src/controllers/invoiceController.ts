@@ -61,8 +61,16 @@ const getInvoicePDF = async (req: Request, res: Response, next: NextFunction) =>
 
 const getInvoice = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    //tomamos el userId
+    const userId = req.user.id;
     const invoiceId = req.params.id;
     const invoice = await InvoiceService.getInvoice(invoiceId);
+    
+    //si la factura es de otro usuario tira 404
+    if (!invoice || (invoice as any).user_id !== userId) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+    
     res.status(200).json(invoice);
 
   } catch (err) {
