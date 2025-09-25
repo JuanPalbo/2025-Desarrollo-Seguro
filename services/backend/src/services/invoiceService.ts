@@ -36,6 +36,13 @@ class InvoiceService {
     ccv: string,
     expirationDate: string
   ) {
+
+     //Lista con los proveedores de pago permitidos
+    const allowedPaymentProviders = ['visa', 'mastercard', 'american-express', 'paypal'];
+    
+    if (!allowedPaymentProviders.includes(paymentBrand.toLowerCase())) {
+      throw new Error('Invalid payment provider. Allowed providers: ' + allowedPaymentProviders.join(', '));
+    }
     // use axios to call http://paymentBrand/payments as a POST request
     // with the body containing ccNumber, ccv, expirationDate
     // and handle the response accordingly
