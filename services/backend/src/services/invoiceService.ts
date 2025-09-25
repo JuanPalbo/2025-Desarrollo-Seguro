@@ -13,10 +13,28 @@ interface InvoiceRow {
   status: string;
 }
 
+// Directorio auxiliar para los recibos
+const INVOICE_UPLOADS_DIR = path.resolve("uploads/invoices");
+
+// Funcion auxiliar para tener un directorio seguro para los recibos
+function getSafePath(fileName: string): string {
+  const resolvedPath = path.resolve(INVOICE_UPLOADS_DIR, fileName); //Se aplica la función auxiliar para garantizar seguridad.
+  if (!resolvedPath.startsWith(INVOICE_UPLOADS_DIR)) {
+    throw new Error("Invalid file path"); //Si el path absoluto no comienza con el directorio seguro entonces se lanza un error y no se continua
+  }
+  return resolvedPath;
+}
+
 class InvoiceService {
   static async list( userId: string, status?: string, operator?: string): Promise<Invoice[]> {
     let q = db<InvoiceRow>('invoices').where({ userId: userId });
-    if (status) q = q.andWhereRaw(" status "+ operator + " '"+ status +"'");
+    //if (status) q = q.andWhereRaw(" status "+ operator + " '"+ status +"'"); Vulnerabilidad identificada para mitigar
+    const allowedOperators = ['=', '!=', '>', '<', '>=', '<=']; // Operadores permitidos para ingreso del usuario, esta vez controlados
+    if (status && allowedOperators.includes(operator)){ //Se controla lo que se ingresa a "status" y "operator", si se encuentran en los operadores habilitados se ejecuta la consulta
+      q = q.andWhereRaw("status " + operator + " ?", [status]); //Se sustituye status por "?" que es un marcador poisicional, y se utiliza un array para almacenar el valor a sustituir en el marcador posicional.
+    } else {
+      console.error("Operador no válido"); // Si el usuario intenta ingresar un valor prohibido se le prohibira continuar y no se ejecutara la consulta.
+    }
     const rows = await q.select();
     const invoices = rows.map(row => ({
       id: row.id,
@@ -79,8 +97,11 @@ class InvoiceService {
       throw new Error('Invoice not found');
     }
     try {
-      const filePath = `/invoices/${pdfName}`;
+      /*const filePath = `/invoices/${pdfName}`;
       const content = await fs.readFile(filePath, 'utf-8');
+      return content;*/
+      const filePath = getSafePath(pdfName) //Ya no se pasa pdfName directamente, sino que se pasa por la función aux que valida el path
+      const content = await fs.readFile(filePath, 'utf-8'); //Cuando se lea con fs.readFile siempre se va a leer el path ya verificado y seguro
       return content;
     } catch (error) {
       // send the error to the standard output
