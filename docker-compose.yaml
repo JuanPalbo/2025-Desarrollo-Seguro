@@ -28,6 +28,8 @@ services:
       - SMTP_PORT=1025
       - SMTP_USER=seed
       - SMTP_PASS=seed
+      ## Key del JWT para sacarlo del codigo
+      - JWT_SECRET=secreto_todavia_mas_seguro
     restart: unless-stopped
     depends_on:
       postgres:
