@@ -1,7 +1,7 @@
 import pytest
 import random
 import requests
-from requests.utils import unquote
+from urllib.parse import unquote
 import quopri
 import re
 
