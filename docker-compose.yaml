@@ -42,9 +42,8 @@ services:
     command: sh -c "npx knex --knexfile src/knexfile.ts migrate:latest && cd dist/src/ && node index.js"
     # command to seed data: npx knex seed:run --knexfile src/knexfile.ts
     
-  #add a postgres service
   postgres:
-    image: postgres:latest
+    image: postgres:17
     container_name: postgres
     environment:
       POSTGRES_USER: user
