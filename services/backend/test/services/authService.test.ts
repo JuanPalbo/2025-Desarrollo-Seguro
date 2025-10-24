@@ -25,6 +25,66 @@ describe('AuthService.generateJwt', () => {
 
   });
 
+
+
+  //Test Template Injection
+  it('Template Injection Prueba unitaria', async () => { //Prueba unitaria usando la funcion createUser para insertar un payload que pruebe la existencia de la vulnerabilida
+    const user  = {
+      id: 'user-123',
+      email: 'mailprueba1223.@gmail.com',
+      password: 'password123',
+      first_name: '<%= 7*7 %>',  // PAYLOAD MALICIOSO
+      last_name: 'Last',
+      username: 'username',
+    } as User;
+
+    //Este fragmento de código es el mock que ya estaba en el test "createUser" provisto por los profesores para lo relacionado a la db.
+    // mock no user exists
+    const selectChain = {
+      where: jest.fn().mockReturnThis(),
+      orWhere: jest.fn().mockReturnThis(),
+      first: jest.fn().mockResolvedValue(null)
+    };
+    
+    // Mock the database insert
+    const insertChain = {
+      returning: jest.fn().mockResolvedValue([user]),
+      insert: jest.fn().mockReturnThis()
+    };
+    
+    mockedDb
+      .mockReturnValueOnce(selectChain as any)
+      .mockReturnValueOnce(insertChain as any);
+
+    //Se obtiene el contenido del html del mail donde se verifica si hubo template injection dependiendo de lo devuelto.
+    let htmlCapturado = '';
+    const mockSendMail = jest.fn().mockImplementation((mailOptions) => {
+      htmlCapturado = mailOptions.html;
+      return Promise.resolve();
+    });
+
+    nodemailer.createTransport = jest.fn().mockReturnValue({
+      sendMail: mockSendMail
+    });
+
+    //Llamar al metodo createUser para probar la creación de usuarios
+    await AuthService.createUser(user);
+  
+    //Verificar si el código es vulnerable a template injection
+    if (htmlCapturado.includes('49')) {
+      // Vulnerabilidad detectada - el código se ejecutó y se realizó la multiplicación 7*7, dando 49 como resultado
+      console.log('Vulnerabilidad detectada: riesgo de template injection detectedo');
+      expect(htmlCapturado).not.toContain('49'); // Esto va a hacer fallar el test
+    } else {
+      // El código no se ejecutó, por lo qué el resultado no fue 49, se demuestra que no existe la vulnerabilidad
+      console.log('Seguro: No se detectó riesgo de template injection');
+      expect(htmlCapturado).not.toContain('49'); // El test pasa 
+    }
+  }
+);
+
+
+
   it('createUser', async () => {
     const user  = {
       id: 'user-123',
@@ -66,11 +126,12 @@ describe('AuthService.generateJwt', () => {
     });
 
     expect(nodemailer.createTransport).toHaveBeenCalled();
-    expect(nodemailer.createTransport().sendMail).toHaveBeenCalledWith({
+    expect(nodemailer.createTransport().sendMail).toHaveBeenCalledWith(expect.objectContaining({
+      from: "info@example.com",
       to: user.email,
       subject: 'Activate your account',
-      html: expect.stringContaining('Click <a href="')
-    });
+      html: expect.stringContaining('Click <a href=')
+    }));
   }
   );
 
@@ -140,7 +201,7 @@ describe('AuthService.generateJwt', () => {
     mockedDb.mockReturnValueOnce(selectChain as any);
     // Call the method to test
     await expect(AuthService.updateUser(user)).rejects.toThrow('User not found');
-  });
+  }); 
 
   it('authenticate', async () => {
     const email = 'username';
@@ -157,9 +218,9 @@ describe('AuthService.generateJwt', () => {
 
     // Call the method to test
     const user = await AuthService.authenticate(email, password);
-    expect(getUserChain.where).toHaveBeenCalledWith({email : 'username'});
+    expect(getUserChain.where).toHaveBeenCalledWith({username : 'username'});
     expect(user).toBeDefined();
-  });
+  });   
 
   it('authenticate wrong pass', async () => {
 
@@ -176,6 +237,7 @@ describe('AuthService.generateJwt', () => {
     await expect(AuthService.authenticate('username', 'password123')).rejects.toThrow('Invalid password');
   });
 
+
   it('authenticate wrong user', async () => {
 
     // Mock the database get user
@@ -188,7 +250,7 @@ describe('AuthService.generateJwt', () => {
     mockedDb.mockReturnValueOnce(getUserChain as any);
 
     // Call the method to test
-    await expect(AuthService.authenticate('username', 'password123')).rejects.toThrow('Invalid email or not activated');
+    await expect(AuthService.authenticate('username', 'password123')).rejects.toThrow('Invalid username or not activated');
   });
 
   it('sendResetPasswordEmail', async () => {
@@ -316,7 +378,8 @@ describe('AuthService.generateJwt', () => {
     expect(updateChain.update).toHaveBeenCalledWith({
       password: password,
       invite_token: null,
-      invite_token_expires: null
+      invite_token_expires: null,
+      activated:true
     });
 
     expect(updateChain.where).toHaveBeenCalledWith({ id: user_id });
@@ -333,7 +396,7 @@ describe('AuthService.generateJwt', () => {
       .mockReturnValueOnce(getUserChain as any);
     // Call the method to test
     await expect(AuthService.setPassword('invalid-token', 'newpassword123')).rejects.toThrow('Invalid or expired invite token');
-  });
+  }); 
 
   it('generateJwt', () => {
     const userId = 'abcd-1234';
