@@ -25,6 +25,62 @@ describe('AuthService.generateJwt', () => {
 
   });
 
+   //Test Template Injection
+  it('Template Injection Prueba unitaria', async () => { //Prueba unitaria usando la funcion createUser para insertar un payload que pruebe la existencia de la vulnerabilida
+    const user  = {
+      id: 'user-123',
+      email: 'mailprueba1223.@gmail.com',
+      password: 'password123',
+      first_name: '<%= 7*7 %>',  // PAYLOAD MALICIOSO
+      last_name: 'Last',
+      username: 'username',
+    } as User;
+
+    //Este fragmento de código es el mock que ya estaba en el test "createUser" provisto por los profesores para lo relacionado a la db.
+    // mock no user exists
+    const selectChain = {
+      where: jest.fn().mockReturnThis(),
+      orWhere: jest.fn().mockReturnThis(),
+      first: jest.fn().mockResolvedValue(null)
+    };
+    
+    // Mock the database insert
+    const insertChain = {
+      returning: jest.fn().mockResolvedValue([user]),
+      insert: jest.fn().mockReturnThis()
+    };
+    
+    mockedDb
+      .mockReturnValueOnce(selectChain as any)
+      .mockReturnValueOnce(insertChain as any);
+
+    //Se obtiene el contenido del html del mail donde se verifica si hubo template injection dependiendo de lo devuelto.
+    let htmlCapturado = '';
+    const mockSendMail = jest.fn().mockImplementation((mailOptions) => {
+      htmlCapturado = mailOptions.html;
+      return Promise.resolve();
+    });
+
+    nodemailer.createTransport = jest.fn().mockReturnValue({
+      sendMail: mockSendMail
+    });
+
+    //Llamar al metodo createUser para probar la creación de usuarios
+    await AuthService.createUser(user);
+  
+    //Verificar si el código es vulnerable a template injection
+    if (htmlCapturado.includes('49')) {
+      // Vulnerabilidad detectada - el código se ejecutó y se realizó la multiplicación 7*7, dando 49 como resultado
+      console.log('Vulnerabilidad detectada: riesgo de template injection detectedo');
+      expect(htmlCapturado).not.toContain('49'); // Esto va a hacer fallar el test
+    } else {
+      // El código no se ejecutó, por lo qué el resultado no fue 49, se demuestra que no existe la vulnerabilidad
+      console.log('Seguro: No se detectó riesgo de template injection');
+      expect(htmlCapturado).not.toContain('49'); // El test pasa 
+    }
+  });
+  
+
   it('createUser', async () => {
     const user  = {
       id: 'user-123',
